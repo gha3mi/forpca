@@ -12,6 +12,7 @@ module forpca
    !> author: Seyed Ali Ghasemi
    type tpca
       integer                               :: ncol, nrow, npc
+      character(:),             allocatable :: method
       real(rk), dimension(:,:), allocatable :: matrix
       real(rk), dimension(:,:), allocatable :: coeff
       real(rk), dimension(:,:), allocatable :: score
@@ -34,10 +35,11 @@ contains
 
    !===============================================================================
    !> author: Seyed Ali Ghasemi
-   pure subroutine initialize(this, matrix, npc)
+   pure subroutine initialize(this, matrix, npc, method)
       class(tpca),              intent(inout)        :: this
       real(rk), dimension(:,:), intent(in)           :: matrix
       integer,                  intent(in), optional :: npc
+      character(*),             intent(in), optional :: method
 
       this%matrix = matrix
       this%nrow = size(matrix,1)
@@ -48,6 +50,13 @@ contains
       else
          this%npc = npc
       end if
+
+      if (.not.present(method)) then
+         this%method = 'svd'
+      else
+         this%method = method
+      end if
+
    end subroutine initialize
    !===============================================================================
 
@@ -55,11 +64,10 @@ contains
    !===============================================================================
    !> author: Seyed Ali Ghasemi
    pure subroutine compute_coeff(this)
+      use forsvd
       class(tpca), intent(inout)               :: this
       real(rk), dimension(this%ncol)           :: mean
       real(rk), dimension(this%ncol,this%ncol) :: cov
-      logical,  dimension(this%ncol)           :: mask
-      integer,  dimension(this%ncol)           :: order
       integer                                  :: i
 
       mean = sum(this%matrix, dim=1) / real(this%nrow, kind=rk)
@@ -71,18 +79,35 @@ contains
 
       cov = matmul(transpose(this%mean_data), this%mean_data)/real(this%nrow - 1, kind=rk)
 
-      call eig(cov, this%coeff, this%latent)
+      select case(this%method)
+       case('svd')
+         block
+            real(rk), dimension(this%ncol,this%ncol) :: U
+            real(rk), dimension(this%ncol,this%ncol) :: VT
+            real(rk), dimension(this%ncol)           :: S
 
-      ! Sort
-      mask = .true.
-      do i = lbound(this%latent,1), ubound(this%latent,1)
-         order(i) = maxloc(this%latent,1,mask)
-         mask(order(i)) = .false.
-      end do
+            call svd(cov, U,S,VT)
+            this%latent = S**2/(this%ncol-1)
+            this%coeff  = transpose(VT)
+         end block
+       case('eig')
+         block
+            logical,  dimension(this%ncol) :: mask
+            integer,  dimension(this%ncol) :: order
 
-      this%latent = this%latent(order)
-      this%coeff  = this%coeff(:,order)
+            call eig(cov, this%coeff, this%latent)
 
+            ! Sort
+            mask = .true.
+            do i = lbound(this%latent,1), ubound(this%latent,1)
+               order(i) = maxloc(this%latent,1,mask)
+               mask(order(i)) = .false.
+            end do
+
+            this%latent = this%latent(order)
+            this%coeff  = this%coeff(:,order)
+         end block
+      end select
    end subroutine compute_coeff
    !===============================================================================
 
@@ -132,17 +157,18 @@ contains
 
    !===============================================================================
    !> author: Seyed Ali Ghasemi
-   pure subroutine pca(this, matrix, npc, coeff, score, latent, explained, matrix_app)
+   pure subroutine pca(this, matrix, npc, method, coeff, score, latent, explained, matrix_app)
       class(tpca),                           intent(inout)         :: this
       real(rk), dimension(:,:),              intent(in)            :: matrix
       integer,                               intent(in),  optional :: npc
+      character(*),                          intent(in),  optional :: method
       real(rk), dimension(:,:), allocatable, intent(out)           :: coeff
       real(rk), dimension(:,:), allocatable, intent(out), optional :: score
       real(rk), dimension(:),   allocatable, intent(out), optional :: latent
       real(rk), dimension(:),   allocatable, intent(out), optional :: explained
       real(rk), dimension(:,:), allocatable, intent(out), optional :: matrix_app
 
-      call this%initialize(matrix, npc)
+      call this%initialize(matrix, npc, method)
 
       call this%compute_coeff()
       coeff = this%coeff

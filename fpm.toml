@@ -19,6 +19,7 @@ source-form = "free"
 [dependencies]
 kinds  = {git="https://github.com/gha3mi/kinds.git"}
 foreig = {git="https://github.com/gha3mi/foreig.git"}
+forsvd = {git="https://github.com/gha3mi/forsvd.git"}
 
 [[test]]
 name       = "test1"

@@ -25,7 +25,7 @@ program test1
    matrix(5, 1) = 0.901_rk
    matrix(5, 2) = 0.345_rk
 
-   call p%pca(matrix, 2, coeff, score, latent, explained, matrix_app)
+   call p%pca(matrix, 2, 'svd', coeff, score, latent, explained, matrix_app)
    print*, p%matrix_app(1, 1)
    print*, p%matrix_app(1, 2)
    print*, p%matrix_app(2, 1)
