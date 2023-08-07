@@ -1,7 +1,7 @@
 program test1
 
    use kinds
-   use forpca
+   use forpca, only: tpca
 
    implicit none
 
