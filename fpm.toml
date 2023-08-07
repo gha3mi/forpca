@@ -1,16 +1,19 @@
-name = "forpca"
-version = "0.3.1"
-author = "Seyed Ali Ghasemi"
+name       = "forpca"
+version    = "VERSION"
+license    = "LICENSE"
+author     = "Seyed Ali Ghasemi"
 maintainer = "info@gha3mi.com"
-copyright = "Copyright (c) 2023, Seyed Ali Ghasemi"
-license = "BSD-3"
+copyright  = "Copyright 2023, Seyed Ali Ghasemi"
+
 [build]
 auto-executables = false
 auto-tests = false
 auto-examples = false
 module-naming = false
+
 [install]
 library = true
+
 [fortran]
 implicit-typing = false
 implicit-external = false
