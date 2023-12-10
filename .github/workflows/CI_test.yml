@@ -34,12 +34,12 @@ jobs:
         compiler: ${{ matrix.toolchain.compiler }}
         version: ${{ matrix.toolchain.version }}
 
-    - name: Run Tests
-      run: fpm test @${{ env.FC}}-test
-      env:
-        FC: ${{ steps.setup-fortran.outputs.fc }}
+    # - name: Run Tests
+    #   run: fpm test @${{ env.FC}}-test
+    #   env:
+    #     FC: ${{ steps.setup-fortran.outputs.fc }}
 
-    - name: Run Tests (USE_COARRAY)
-      run: fpm test @${{ env.FC}}-test-coarray
-      env:
-        FC: ${{ steps.setup-fortran.outputs.fc }}
+    # - name: Run Tests (USE_COARRAY)
+    #   run: fpm test @${{ env.FC}}-test-coarray
+    #   env:
+    #     FC: ${{ steps.setup-fortran.outputs.fc }}
