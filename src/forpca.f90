@@ -27,7 +27,7 @@ module forpca
       procedure :: reconstruct_data
       procedure :: cmp_explained_variance
       procedure :: pca
-      procedure :: dlloc => deallocate_tpca
+      procedure :: finalize => deallocate_tpca
    end type tpca
    !===============================================================================
 
@@ -41,73 +41,102 @@ contains
       integer,                  intent(in), optional :: npc
       character(*),             intent(in), optional :: method
 
-      this%matrix = matrix
-      this%nrow = size(matrix,1)
-      this%ncol = size(matrix,2)
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
 
-      if (.not.present(npc)) then
-         this%npc = this%ncol
-      else
-         this%npc = npc
+         this%matrix = matrix
+         this%nrow = size(matrix,1)
+         this%ncol = size(matrix,2)
+
+         if (.not.present(npc)) then
+            this%npc = this%ncol
+         else
+            this%npc = npc
+         end if
+
+         if (.not.present(method)) then
+            this%method = 'svd'
+         else
+            this%method = method
+         end if
+
+#if defined(USE_COARRAY)
       end if
-
-      if (.not.present(method)) then
-         this%method = 'svd'
-      else
-         this%method = method
-      end if
-
+#endif
    end subroutine initialize
    !===============================================================================
 
 
    !===============================================================================
    !> author: Seyed Ali Ghasemi
-   pure subroutine compute_coeff(this)
+   impure subroutine compute_coeff(this)
       use forsvd
+      use formatmul, only: matmul
+
       class(tpca), intent(inout)               :: this
       real(rk), dimension(this%ncol)           :: mean
       real(rk), dimension(this%ncol,this%ncol) :: cov
       integer                                  :: i
 
-      mean = sum(this%matrix, dim=1) / real(this%nrow, kind=rk)
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
+         mean = sum(this%matrix, dim=1) / real(this%nrow, kind=rk)
 
-      allocate(this%mean_data(this%nrow,this%ncol))
-      do i = 1, this%nrow
-         this%mean_data(i, :) = this%matrix(i, :) - mean
-      end do
+         allocate(this%mean_data(this%nrow,this%ncol))
+         do i = 1, this%nrow
+            this%mean_data(i, :) = this%matrix(i, :) - mean
+         end do
+#if defined(USE_COARRAY)
+      end if
+#endif
 
-      cov = matmul(transpose(this%mean_data), this%mean_data)/real(this%nrow - 1, kind=rk)
+#if defined(USE_COARRAY)
+      call co_broadcast(this%mean_data, source_image=1)
+      sync all
+      cov = matmul(transpose(this%mean_data), this%mean_data, method='coarray', option='m1')/real(this%nrow - 1, kind=rk)
+#else
+      cov = matmul(transpose(this%mean_data), this%mean_data, method='default', option='m1')/real(this%nrow - 1, kind=rk)
+#endif
 
-      select case(this%method)
-       case('svd')
-         block
-            real(rk), dimension(this%ncol,this%ncol) :: U
-            real(rk), dimension(this%ncol,this%ncol) :: VT
-            real(rk), dimension(this%ncol)           :: S
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
 
-            call svd(cov, U,S,VT)
-            this%latent = S**2/(this%ncol-1)
-            this%coeff  = transpose(VT)
-         end block
-       case('eig')
-         block
-            logical,  dimension(this%ncol) :: mask
-            integer,  dimension(this%ncol) :: order
+         select case(this%method)
+          case('svd')
+            block
+               real(rk), dimension(this%ncol,this%ncol) :: U
+               real(rk), dimension(this%ncol,this%ncol) :: VT
+               real(rk), dimension(this%ncol)           :: S
 
-            call eig(cov, this%coeff, this%latent)
+               call svd(cov, U,S,VT)
+               this%latent = S**2/(this%ncol-1)
+               this%coeff  = transpose(VT)
+            end block
+          case('eig')
+            block
+               logical,  dimension(this%ncol) :: mask
+               integer,  dimension(this%ncol) :: order
 
-            ! Sort
-            mask = .true.
-            do i = lbound(this%latent,1), ubound(this%latent,1)
-               order(i) = maxloc(this%latent,1,mask)
-               mask(order(i)) = .false.
-            end do
+               call eig(cov, this%coeff, this%latent)
 
-            this%latent = this%latent(order)
-            this%coeff  = this%coeff(:,order)
-         end block
-      end select
+               ! Sort
+               mask = .true.
+               do i = lbound(this%latent,1), ubound(this%latent,1)
+                  order(i) = maxloc(this%latent,1,mask)
+                  mask(order(i)) = .false.
+               end do
+
+               this%latent = this%latent(order)
+               this%coeff  = this%coeff(:,order)
+            end block
+         end select
+
+#if defined(USE_COARRAY)
+      end if
+#endif
    end subroutine compute_coeff
    !===============================================================================
 
@@ -118,27 +147,52 @@ contains
       class(tpca), intent(inout) :: this
       integer                    :: i, j
 
-      allocate(this%score(this%nrow,this%ncol))
-      do i = 1, this%nrow
-         do j = 1, this%npc
-            this%score(i, j) = dot_product(this%mean_data(i, :), this%coeff(:, j))
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
+
+         allocate(this%score(this%nrow,this%ncol))
+         do i = 1, this%nrow
+            do j = 1, this%npc
+               this%score(i, j) = dot_product(this%mean_data(i, :), this%coeff(:, j))
+            end do
          end do
-      end do
+
+#if defined(USE_COARRAY)
+      end if
+#endif
    end subroutine compute_score
    !===============================================================================
 
 
    !===============================================================================
    !> author: Seyed Ali Ghasemi
-   pure subroutine reconstruct_data(this)
-      class(tpca), intent(inout)                :: this
-      real(rk), dimension(this%nrow, this%ncol) :: X_centered
-      real(rk), dimension(this%nrow, this%npc)  :: pca_X
-      integer                                   :: i, j
+   impure subroutine reconstruct_data(this)
+      use formatmul, only: matmul
 
-      X_centered = this%matrix - this%mean_data
-      pca_X = matmul(X_centered, this%coeff)
+      class(tpca), intent(inout)             :: this
+      real(rk), dimension(:, :), allocatable :: X_centered
+      real(rk), dimension(:, :), allocatable :: pca_X
+      integer                                :: i, j
+
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
+         X_centered = this%matrix - this%mean_data
+#if defined(USE_COARRAY)
+      end if
+#endif
+
+#if defined(USE_COARRAY)
+      call co_broadcast(this%coeff, source_image=1)
+      call co_broadcast(X_centered, source_image=1)
+      sync all
+      this%matrix_app = matmul(pca_X, transpose(this%coeff), method='coarray', option='m1') + this%mean_data
+      pca_X = matmul(X_centered, this%coeff,method='coarray', option='m1')
+#else
       this%matrix_app = matmul(pca_X, transpose(this%coeff)) + this%mean_data
+      pca_X = matmul(X_centered, this%coeff, method='default', option='m1')
+#endif
    end subroutine reconstruct_data
    !===============================================================================
 
@@ -149,15 +203,23 @@ contains
       class(tpca), intent(inout) :: this
       real(rk)                   :: sum_latent
 
-      sum_latent = sum(this%latent(1:this%npc))
-      this%explained_variance = this%latent / sum_latent
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
+
+         sum_latent = sum(this%latent(1:this%npc))
+         this%explained_variance = this%latent / sum_latent
+
+#if defined(USE_COARRAY)
+      end if
+#endif
    end subroutine cmp_explained_variance
    !===============================================================================
 
 
    !===============================================================================
    !> author: Seyed Ali Ghasemi
-   pure subroutine pca(this, matrix, npc, method, coeff, score, latent, explained, matrix_app)
+   impure subroutine pca(this, matrix, npc, method, coeff, score, latent, explained, matrix_app)
       class(tpca),                           intent(inout)         :: this
       real(rk), dimension(:,:),              intent(in)            :: matrix
       integer,                               intent(in),  optional :: npc
@@ -168,24 +230,39 @@ contains
       real(rk), dimension(:),   allocatable, intent(out), optional :: explained
       real(rk), dimension(:,:), allocatable, intent(out), optional :: matrix_app
 
-      call this%initialize(matrix, npc, method)
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
+         call this%initialize(matrix, npc, method)
+
+#if defined(USE_COARRAY)
+      end if
+#endif
 
       call this%compute_coeff()
       coeff = this%coeff
 
-      if(present(score)) then
-         call this%compute_score()
-         score = this%score
-      end if
+#if defined(USE_COARRAY)
+      if (this_image() == 1) then
+#endif
 
-      if(present(latent)) then
-         latent = this%latent
-      end if
+         if(present(score)) then
+            call this%compute_score()
+            score = this%score
+         end if
 
-      if(present(explained)) then
-         call this%cmp_explained_variance()
-         explained = this%explained_variance*100.0_rk
+         if(present(latent)) then
+            latent = this%latent
+         end if
+
+         if(present(explained)) then
+            call this%cmp_explained_variance()
+            explained = this%explained_variance*100.0_rk
+         end if
+
+#if defined(USE_COARRAY)
       end if
+#endif
 
       if(present(matrix_app)) then
          call this%reconstruct_data()
@@ -201,11 +278,14 @@ contains
    elemental pure subroutine deallocate_tpca(this)
       class(tpca), intent(inout) :: this
 
+      ! if (this_image() == 1) then
+
       if (allocated(this%matrix))     deallocate(this%matrix)
       if (allocated(this%coeff))      deallocate(this%coeff)
       if (allocated(this%mean_data))  deallocate(this%mean_data)
       if (allocated(this%score))      deallocate(this%score)
       if (allocated(this%matrix_app)) deallocate(this%matrix_app)
+      ! end if
    end subroutine deallocate_tpca
    !===============================================================================
 

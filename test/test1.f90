@@ -26,6 +26,21 @@ program test1
    matrix(5, 2) = 0.345_rk
 
    call p%pca(matrix, 2, 'svd', coeff, score, latent, explained, matrix_app)
+
+#if defined(USE_COARRAY)
+   if (this_image() == 1) then
+      print*, p%matrix_app(1, 1)
+      print*, p%matrix_app(1, 2)
+      print*, p%matrix_app(2, 1)
+      print*, p%matrix_app(2, 2)
+      print*, p%matrix_app(3, 1)
+      print*, p%matrix_app(3, 2)
+      print*, p%matrix_app(4, 1)
+      print*, p%matrix_app(4, 2)
+      print*, p%matrix_app(5, 1)
+      print*, p%matrix_app(5, 2)
+   end if
+#else
    print*, p%matrix_app(1, 1)
    print*, p%matrix_app(1, 2)
    print*, p%matrix_app(2, 1)
@@ -36,8 +51,8 @@ program test1
    print*, p%matrix_app(4, 2)
    print*, p%matrix_app(5, 1)
    print*, p%matrix_app(5, 2)
-   call p%dlloc()
+#endif
 
-   deallocate(matrix, matrix_app, coeff, score, latent, explained)
+   call p%finalize()
 
 end program test1

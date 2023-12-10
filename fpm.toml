@@ -19,12 +19,23 @@ implicit-typing = false
 implicit-external = false
 source-form = "free"
 
+[preprocess]
+[preprocess.cpp]
+macros = []
+
 [dependencies]
 kinds  = {git="https://github.com/gha3mi/kinds.git"}
 foreig = {git="https://github.com/gha3mi/foreig.git"}
 forsvd = {git="https://github.com/gha3mi/forsvd.git"}
+formatmul = {git="https://github.com/gha3mi/formatmul.git"}
+fortime = {git="https://github.com/gha3mi/fortime.git"}
 
 [[test]]
 name       = "test1"
 source-dir = "test"
 main       = "test1.f90"
+
+[[test]]
+name       = "benchmark"
+source-dir = "test"
+main       = "benchmark.f90"

@@ -16,7 +16,7 @@ type(tpca) :: p
 
 call p%pca(matrix, npc, method, coeff, score, latent, explained, matrix_app)
 
-call p%dlloc() ! finalize
+call p%finalize() ! finalize
 ```
 
 ## fpm dependency
@@ -52,10 +52,19 @@ cd forpca
 ```shell
 fpm @ifort-test
 ```
+
+```shell
+fpm @ifort-test-coarray
+```
+
 **Intel Fortran Compiler (ifx)**
 
 ```shell
 fpm @ifx-test
+```
+
+```shell
+fpm @ifx-test-coarray
 ```
 
 **GNU Fortran Compiler (gfortran)**
