@@ -2,7 +2,7 @@
 [![Version](https://img.shields.io/github/release/gha3mi/forpca.svg)](https://github.com/gha3mi/forpca/releases/latest)
 [![Documentation](https://img.shields.io/badge/ford-Documentation%20-blueviolet.svg)](https://gha3mi.github.io/forpca/)
 [![License](https://img.shields.io/github/license/gha3mi/forpca?color=green)](https://github.com/gha3mi/forpca/blob/main/LICENSE)
-[![Build](https://github.com/gha3mi/forpca/actions/workflows/ci.yml/badge.svg)](https://github.com/gha3mi/forpca/actions/workflows/ci.yml)
+[![Build](https://github.com/gha3mi/forpca/actions/workflows/CI_test.yml/badge.svg)](https://github.com/gha3mi/forpca/actions/workflows/CI_test.yml)
 
 <img alt="ForPCA" src="https://github.com/gha3mi/forpca/raw/main/media/logo.png" width="750">
 
