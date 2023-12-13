@@ -202,6 +202,7 @@ contains
       class(tpca), intent(inout)             :: this
       real(rk), dimension(:, :), allocatable :: X_centered
       real(rk), dimension(:, :), allocatable :: pca_X
+      real(rk), dimension(:, :), allocatable :: coeff_T
       integer                                :: i, j
 
       X_centered = this%matrix - this%mean_data
@@ -210,10 +211,12 @@ contains
       call co_broadcast(this%coeff, source_image=1)
       pca_X = matmul(X_centered, this%coeff,method='coarray', option='m2')
       call co_broadcast(pca_X, source_image=1)
-      this%matrix_app = matmul(pca_X, transpose(this%coeff), method='coarray', option='m2') + this%mean_data
+      coeff_T = transpose(this%coeff)
+      this%matrix_app = matmul(pca_X, coeff_T, method='coarray', option='m2') + this%mean_data
 #else
+      coeff_T = transpose(this%coeff)
       pca_X = matmul(X_centered, this%coeff, method='default', option='m2')
-      this%matrix_app = matmul(pca_X, transpose(this%coeff), method='default', option='m2') + this%mean_data
+      this%matrix_app = matmul(pca_X, coeff_T, method='default', option='m2') + this%mean_data
 #endif
    end subroutine reconstruct_data
    !===============================================================================
