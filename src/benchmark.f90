@@ -15,7 +15,7 @@ program benchmark
    type(tpca)                            :: p
    type(timer)                           :: t
 
-   allocate(matrix(100,100))
+   allocate(matrix(200,200))
 
 #if defined(USE_COARRAY)
    sync all
