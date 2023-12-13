@@ -78,6 +78,7 @@ contains
       real(rk), dimension(this%ncol)           :: mean
       real(rk), dimension(this%ncol,this%ncol) :: cov
       integer                                  :: i
+      real(rk), dimension(:,:), allocatable    :: mean_data_T
 
 #if defined(USE_COARRAY)
       if (this_image() == 1) then
@@ -88,16 +89,18 @@ contains
          do i = 1, this%nrow
             this%mean_data(i, :) = this%matrix(i, :) - mean
          end do
+         mean_data_T = transpose(this%mean_data)
 #if defined(USE_COARRAY)
       end if
 #endif
 
 #if defined(USE_COARRAY)
       call co_broadcast(this%mean_data, source_image=1)
+      call co_broadcast(mean_data_T, source_image=1)
       sync all
-      cov = matmul(transpose(this%mean_data), this%mean_data, method='coarray', option='m1')/real(this%nrow - 1, kind=rk)
+      cov = matmul(mean_data_T, this%mean_data, method='coarray', option='m1')/real(this%nrow - 1, kind=rk)
 #else
-      cov = matmul(transpose(this%mean_data), this%mean_data, method='default', option='m1')/real(this%nrow - 1, kind=rk)
+      cov = matmul(mean_data_T, this%mean_data, method='default', option='m1')/real(this%nrow - 1, kind=rk)
 #endif
 
 #if defined(USE_COARRAY)
@@ -187,11 +190,11 @@ contains
       call co_broadcast(this%coeff, source_image=1)
       call co_broadcast(X_centered, source_image=1)
       sync all
-      this%matrix_app = matmul(pca_X, transpose(this%coeff), method='coarray', option='m1') + this%mean_data
       pca_X = matmul(X_centered, this%coeff,method='coarray', option='m1')
+      this%matrix_app = matmul(pca_X, transpose(this%coeff), method='coarray', option='m1') + this%mean_data
 #else
-      this%matrix_app = matmul(pca_X, transpose(this%coeff)) + this%mean_data
       pca_X = matmul(X_centered, this%coeff, method='default', option='m1')
+      this%matrix_app = matmul(pca_X, transpose(this%coeff)) + this%mean_data
 #endif
    end subroutine reconstruct_data
    !===============================================================================
